@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run tests
+        run: pytest test_driftcatch.py -v
+      - name: CLI smoke test
+        run: |
+          echo 'id,name,email' > test1.csv
+          echo '1,Alice,a@b.com' >> test1.csv
+          echo 'id,name' > test2.csv
+          echo '1,Alice' >> test2.csv
+          python cli.py snapshot test1.csv -o snap1.json
+          python cli.py snapshot test2.csv -o snap2.json
+          python cli.py diff snap1.json snap2.json
+          python cli.py check snap1.json snap2.json && exit 1 || echo 'Correctly blocked breaking change'
